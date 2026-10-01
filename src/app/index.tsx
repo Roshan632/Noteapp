@@ -1,98 +1,112 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import NoteCard from "@/components/NoteCard"
+import { useNotesStore } from "@/store/useNotes"
+import { CATEGORY } from "@/utils/constants"
+import {AntDesign} from "@expo/vector-icons"
+import { useMemo, useState } from "react"
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
+import { SafeAreaView } from "react-native-safe-area-context"
+import { useRouter } from "expo-router"
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native"
+
+
+const HomeScreen=()=>{
+  const router=useRouter();
+  const [searchText, setSearchText] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const {notes}= useNotesStore();
+ const filteredNotes = useMemo(() => {
+  let result = notes;
+
+  if (selectedCategory) {
+    result = result.filter((note) => note.category === selectedCategory);
   }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+  if (searchText.trim()) {
+    result = result.filter((note) =>
+      note.title.toLowerCase().includes(searchText.toLowerCase()),
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  return result;
+},[notes, selectedCategory, searchText]);
+
+
+  const handleCategoryClick =(category:string)=>{
+    //setSelectedCategory(category)
+    setSelectedCategory((prev)=> prev=== category ? "" : category)
+  }
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+    <SafeAreaView className="flex-1 p-4 bg-alabaster">
+      <View className="flex-1 ">
+        <TextInput
+          className="bg-white border border-gray-300 h-4 rounded-full p-4 w-full"
+          placeholder="Search your thoughts..."
+          placeholderTextColor="#393E46"
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+
+        <ScrollView horizontal
+        showsHorizontalScrollIndicator={false} 
+        style={{minHeight: 50,maxHeight: 50, marginTop: 16}} 
+        contentContainerStyle={{
+          flexDirection:"row", 
+          alignItems:"center",
+          gap:8,
+        paddingHorizontal: 4,
+      }}
+        >
+          {CATEGORY.map((item) => {
+            const isSelected = selectedCategory === item
+
+            return (
+              <Pressable
+                key={item}
+                onPress={() => handleCategoryClick(item)}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 28,
+                  borderRadius: 999,
+                  backgroundColor: isSelected ? "#00ADB5" : "#fff",
+                  borderWidth: 1,
+                  borderColor: isSelected ? "#3830a3" : "#d1d5db",
+                }}
+              >
+                <Text style={{ color:isSelected ? "#fff" : "#4b5563", fontSize:14,}}>{item}</Text>
+              </Pressable>
+            )
+          })}
+        </ScrollView>
+        {filteredNotes.length === 0 ?   (
+          <View className="w-full items-center mt-16 justify-center">
+            <Text className="text-gray-400 font-medium text-2xl">No notes yet</Text>
+            <Text className="text-gray-500 text-lg mt-2">
+              Tap + to capture your first thought
+              </Text>
+          </View>
+        ) : (
+          <FlatList data={filteredNotes} 
+        keyExtractor={(note)=>note.id}
+        renderItem={({item}) => <NoteCard note={item} />}
+        contentContainerStyle={{paddingBottom: 100}}
+        showsVerticalScrollIndicator={false}
+        />
+        ) }
+       
+        <Pressable 
+        onPress={()=>router.push("/add" as any)}
+        className="absolute bottom-4 right-5 bg-governor-bay p-5 rounded-3xl shadow-2xl">
+          <AntDesign name="plus" size={30} color="white"/> 
+        </Pressable>
+        
+      </View>
+    </SafeAreaView>
+  )
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
+export default HomeScreen
